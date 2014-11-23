@@ -1134,6 +1134,14 @@
     (if (eq? 'done-ok (proc 'status))
         (let-values (((width height)
                       (cond ((regexp-match-positions
+                              #rx#" +([0-9]+) rows; +([0-9]+) columns;"
+                              bstr)
+                             => (lambda (m)
+                                  (values (%charterm:bytes-ascii->nonnegative-integer
+                                           (subbytes bstr (caaddr m) (cdaddr m)))
+                                          (%charterm:bytes-ascii->nonnegative-integer
+                                           (subbytes bstr (caadr  m) (cdadr m))))))
+                            ((regexp-match-positions
                               #rx#"rows +([0-9]+);.*columns +([0-9]+)"
                               bstr)
                              => (lambda (m)
@@ -1150,7 +1158,6 @@
                                           (%charterm:bytes-ascii->nonnegative-integer
                                            (subbytes bstr (caaddr m) (cdaddr m))))))
                             (else
-                             (error 'size "~v\n" bstr)
                              (values #f #f)))))
           ;; Note: These checks for 0 are for if "stty" returns 0, such as
           ;; seems to happen in the emulator on the Wyse S50 when in SSH rather than Telnet.
