@@ -3,7 +3,7 @@
 
 (require racket/cmdline
          racket/date
-         "charterm.rkt")
+         charterm)
 
 (define (%charterm:string-pad-or-truncate str width)
   (let ((len (string-length str)))
@@ -291,8 +291,7 @@
                                ;; (charterm-display "Timeout.")
                                (loop-maybe-check-screen-size)))))))))))))))
 
-(provide main)
-(define (main . args)
+(module+ main
   ;; TODO: Accept TTY as an argument.
   (let ((tty     #f)
         (escape? #t))

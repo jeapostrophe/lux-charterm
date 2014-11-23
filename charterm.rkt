@@ -1,276 +1,8 @@
 #lang racket/base
 ;; Copyright (c) Neil Van Dyke.  See file "info.rkt".
-
 (require (for-syntax racket/base
                      racket/syntax)
-         racket/system
-         (planet neil/mcfly))
-
-(doc (section "Introduction")
-
-     (para "The "
-           "CharTerm"
-           " package provides a Racket interface for character-cell video
-display terminals on Unix-like systems -- such as for "
-           (as-index "GNU Screen")
-           " and "
-           (as-index (code "tmux"))
-           " sessions on "
-           (index '("cloud server" "server") "cloud servers")
-           ", "
-           (as-index "XTerm")
-           " windows on a workstation desktop, and some older hardware
-terminals (even the venerable "
-           (as-index "DEC VT100")
-           ").  Currently, it implements a subset of features available on most
-terminals.")
-
-     (para "This package could be used to implement a status/management console
-for a Racket-based server process (perhaps run in GNU Screen or "
-           (code "tmux")
-           " on a server machine, to be detached and reattached from SSH
-sessions), a lightweight user interface for a systems tool, a command-line
-REPL, a text editor, creative retro uses of old equipment, and, perhaps most
-importantly, a "
-           ;; (hyperlink "http://en.wikipedia.org/wiki/Rogue_%28computer_game%29"
-           "Rogue-like"
-           ;;)
-           " application.")
-
-     (para "The "
-           "CharTerm"
-           " package does not include any native code (such as from "
-           (as-index (code "terminfo"))
-           ", "
-           (as-index (code "termcap"))
-           ", "
-           (as-index (code "curses"))
-           ", or "
-           (as-index (code "ncurses"))
-           ") in the Racket process,
-such as through the Racket FFI or C extensions, so there is less potential for
-a problem involving native code to threaten the reliability or security of a
-program.  "
-           "CharTerm"
-           " is implemented in pure Racket code except for executing "
-           (code "/bin/stty")
-           " for some purposes.  Specifically, "
-           (code "/bin/stty")
-           " at startup time and shutdown time, to set modes, and (for terminal
-types that don't seem to support a screen size report control sequence) when
-getting screen size.  Besides security and stability, lower dependence on
-native code might also simplify porting to host platforms that don't have those
-native code facilities."))
-
-(doc (subsection "Demo")
-
-     (para "For a demonstration, the following command, run from a terminal, should install the "
-           "CharTerm"
-           " package (if not already installed), and run the demo:")
-
-     (commandline "racket -pm neil/charterm/demo")
-
-     (para "This demo reports what keys you pressed, while letting you edit a
-text field, and while displaying a clock.  The clock is updated roughly once
-per second, and is not updated during heavy keyboard input, such as when typing
-fast.  The demo responds to changing terminal sizes, such as when an XTerm is
-window is resized.  It also displays the determined terminal size, and some
-small tests of the "
-           (racket #:width)
-           " argument to "
-           (racket charterm-display)
-           ".  Exit the demo by pressing the "
-           (bold "Esc")
-           " key.")
-
-     (para "Note: Although this demo includes an editable text field, as proof
-of concept, the current version of "
-           "CharTerm"
-           " does not provide editable text fields as reusable functionality."))
-
-(doc (subsection "Simple Example")
-
-     (para "Here's your first "
-           "CharTerm"
-           " program:")
-
-     (RACKETBLOCK
-      (UNSYNTAX (code "#lang racket/base"))
-
-      (require (planet neil/charterm))
-
-      (with-charterm
-       (charterm-clear-screen)
-       (charterm-cursor 10 5)
-       (charterm-display "Hello, ")
-       (charterm-bold)
-       (charterm-display "you")
-       (charterm-normal)
-       (charterm-display ".")
-       (charterm-cursor 1 1)
-       (charterm-display "Press a key...")
-       (let ((key (charterm-read-key)))
-         (charterm-cursor 1 1)
-         (charterm-clear-line)
-         (printf "You pressed: ~S\r\n" key))))
-
-     (para "Now you're living the dream of the '70s."))
-
-(doc (section "Terminal Diversity")
-
-     (para "Like people, few terminals are exactly the same.")
-
-     (para "Some key (ha) terms (ha) used by "
-           "CharTerm"
-           " are:")
-
-     (itemlist (item (tech "termvar")
-                     " --- a string value like from the Unix-like "
-                     (code "TERM")
-                     " environment variable, used to determine a default "
-                     (tech "protocol")
-                     " and "
-                     (tech "keydec")
-                     ".")
-
-               (item (tech "protocol")
-                     " --- how to control the display, query for information, etc.")
-
-               (item (tech "keydec")
-                     " --- how to decode key encodings of a particular
-terminal.  A keydec is constructed from one or more keysets, can produce "
-                     (tech "keycode")
-                     "s or "
-                     (tech "keyinfo")
-                     "s.")
-
-               (item (tech "keyset")
-                     " --- a specification of encoding some of the keys in a
-particular terminal, including "
-                     (tech "keylabel")
-                     "s and "
-                     (tech "keycode")
-                     "s.")
-
-               (item (tech "keylabel")
-                     " --- a string for how a key is likely labeled on a
-keyboard, such as the DEC VT100 "
-                     (bold "PF1")
-                     " key would have a keylabel "
-                     (racket "PF1")
-                     " for a "
-                     (tech "keycode")
-                     " "
-                     (racket 'f1)
-                     ".")
-
-               (item (tech "keycode")
-                     " --- a value produced by a decoded key,
-such as a character for normal printable keys, like "
-                     (racket #\a)
-                     " and "
-                     (racket #\space)
-                     ", a symbol for some recognized unprintable keys, like "
-                     (racket 'escape)
-                     " and "
-                     (racket 'f1)
-                     ", or possibly a number for unrecognized keys.")
-
-               (item (tech "keyinfo")
-                     " --- an object that is used like a "
-                     (tech "keycode")
-                     ", except
-bundles together a keycode and a "
-                     (tech "keylabel")
-                     ", as well as alternatate keycodes and
-information about how the key was decoded (e.g., from which "
-                     (tech "keyset")
-                     ")."))
-
-     (para "These terms are discussed in the following subsections.")
-
-     (para "CharTerm"
-           " is developed with help of original documentation such as that
-curated by Paul Williams at "
-           (hyperlink "http://vt100.net/" "vt100.net")
-           ", various commentary found on the Web, observed behavior with
-modern software terminals like XTerm, various emulators for hardware terminals,
-and sometimes original hardware terminals.  Thanks to Mark Pearrow for
-contributing a TeleVideo 950, and Paul McCabe for a Wyse S50 WinTerm.")
-
-     (para "At time of this writing, the author is looking to acquire a DEC
-VT525, circa 1994, for ongoing testing.")
-
-     (para "The author welcomes feedback on useful improvements to "
-           "CharTerm"
-           "'s support for terminal diversity (no pun).  If you have a terminal
-that is sending an escape sequence not recognized by the demo, you can run the
-demo with the "
-           (Flag "n")
-           " (aka "
-           (DFlag "no-escape")
-           ") argument to see the exact byte sequence:")
-
-     (commandline "racket -pm- neil/charterm/demo -n")
-
-     (para "When "
-           (Flag "n")
-           " is used, this will be indicated by the bottom-most scrolling line,
-rather than saying ``"
-           (tt "To quit, press " (bold "Esc") ".")
-           "'' instead will say ``"
-           (tt "There is no escape from this demo.")
-           "'' You will have to kill the process through some other means."))
-
-(doc (subsection "Protocol")
-
-     (para "The first concept "
-           "CharTerm"
-           " has for distinguishing how to communicate with a terminal is what
-is what is called here "
-           (deftech "protocol")
-           ", which concerns everything except how keyboard keys are decoded.
-The following protocols are currently implemented:")
-
-     (itemlist
-
-      (item (deftech (code "ansi") " protocol")
-            " --- Terminals approximating ["
-            (tech "ANSI X3.64")
-            "], which is most terminals in use today, including software ones
-like XTerm.  This protocol is the emphasis of this package; the other protocols
-are for unusual situations.")
-
-      ;; (item (code "dec-vt100")
-      ;;       " --- The DEC VT100 and compatibles that could be considered "
-      ;;       (code "ansi")
-      ;;       " except don't have insert-line and delete-line.")
-
-      (item (deftech (code "wyse-wy50") " protocol")
-            " --- Terminals compatible with the Wyse WY-50.  This support is
-based on ["
-            (tech "WY-50-QRG")
-            "], ["
-            (tech "WY-60-UG")
-            "], ["
-            (tech "wy60")
-            "], and ["
-            (tech "PowerTerm")
-            "].  Note that video attributes are not supported, due to the WY-50's
-model of having video attribute changes occupy character cells; you may wish
-to run the Wyse terminal in an ANSI or VT100 mode.")
-
-      (item (deftech (code "televideo-925") " protocol")
-            " --- Terminals compatible with the TeleVideo 925.  This support is based on ["
-            (tech "TVI-925-IUG")
-            "] and behavior of ["
-            (tech "PowerTerm")
-            "].  Note that video attributes are not supported, due to the 925's
-model of having video attribute changes occupy character cells; you may wish to
-run your TeleVideo terminal in ANSI or VT100 mode, if it has one.")
-
-      (item (deftech (code "ascii") " protocol")
-            " --- Terminals that support ASCII but not much else that we know about.")))
+         racket/system)
 
 (define-syntax (%charterm:protocol-case stx)
   (syntax-case stx (else)
@@ -341,94 +73,8 @@ run your TeleVideo terminal in ANSI or VT100 mode, if it has one.")
               "unimplemented feature for protocol ~S"
               (charterm-protocol CT))))))
 
-(doc (subsection "Key Encoding")
-
-     (para "While most video display control, they seem to vary more by key
-encoding.")
-
-     (para "The "
-           "CharTerm"
-           " author was motivated to increase the sophistication of its
-keyboard handling after a series of revelations on the Sunday of the long
-weekend in which "
-           "CharTerm"
-           " was initially written.  The first was discovering that four of the
-function keys that had been working fine in "
-           (code "rxvt")
-           " did not work in XTerm.  Dave Gilbert somewhat demystified this by
-pointing out that the original VT100 had only four function keys, which set
-into motion an unfortunate series of bad decisions by various developers of
-terminal software to be needlessly incompatible with each other.  After
-Googling, a horrifying 2005 Web post by Phil Gregory ["
-           (tech "Gregory")
-           "], which showed that key encoding among XTerm variants was even
-worse than one could ever fear.  Even if one already knew how much subtleties
-of old terminals varied (e.g., auto-newline behavior, whether an attribute
-change consumed a space, etc.), this incompatibility in newer software was
-surprising. Then, on a hunch, I tried the Linux Console on a Debian Squeeze
-machine, which surely is ANSI, and found, however, that it generated "
-           (italic "yet different")
-           " byte sequences, for the first "
-           (italic "five")
-           " (not four) function keys.  Then I compared all to the ["
-           (tech "ECMA-48")
-           "] standard, which turns out to be nigh-inscrutable, so which might
-help explain why everyone became so anti-social.")
-
-     (para "CharTerm"
-           " now provides the abstractions of "
-           (tech "keysets")
-           " and "
-           (tech "keydecs")
-           " to deal with this diversity in a maintainable way."))
-
-(doc (subsubsection "Keylabel")
-
-     (para "A "
-           (deftech "keylabel")
-           " is a Racket string for how a key is likely labeled on a particular terminal's keyboard.  Different keyboards may have different keylabels for the same "
-           (tech "keycode")
-           ".  For example, a VT100 has a "
-           (bold "PF1")
-           " key (keylabel "
-           (racket "PF1")
-           ", keycode "
-           (racket 'f1)
-           "), while many other keyboards would label the key "
-           (bold "F1")
-           " (keylabel "
-           (racket "F1")
-           ", keycode "
-           (racket 'f1)
-           ").  The keylabel currently is most useful for documenting and debugging, although it could later be used when giving instructions to the user, such as knowing whether to tell the user the "
-           (bold "Return")
-           " key or the "
-           (bold "Enter")
-           " key; the "
-           (bold "Backspace")
-           " or the "
-           (bold "Rubout")
-           " key; etc."))
-
-(doc (subsubsection "Keycode")
-
-     (para "A "
-           (deftech "keycode")
-           " is a value representing a key read from a terminal, which can be a Racket character, symbol, or number.  Keys corresponding to printable characters have keycodes as Racket characters.  Some keys corresponding to special non-printable characters can have keycodes of Racket symbols, such as "
-           (racket 'return)
-           ", "
-           (racket 'f1)
-           ", "
-           (racket 'up)
-           ", etc."))
-
 ;; TODO: Document here all the symbol keycodes we define.
 
-(doc (defproc (charterm-keycode? (x any/c))
-         boolean?
-       "Predicate for whether or not "
-       (racket x)
-       " is a valid keycode."))
 (provide charterm-keycode?)
 (define (charterm-keycode? x)
   (if (or (symbol? x)
@@ -436,19 +82,6 @@ help explain why everyone became so anti-social.")
           (exact-nonnegative-integer? x))
       #t
       #f))
-
-(doc (subsubsection "Keyinfo")
-
-     (para "A "
-           (deftech "keyinfo")
-           " represents a "
-           (tech "keycode")
-           " for a key, a "
-           (tech "keylabel")
-           ", and how it is encoded as bytes.  It is represented in Racket as
-a "
-           (racket charterm-keyinfo)
-           " object."))
 
 (define-struct charterm-keyinfo
   (keyset-id
@@ -459,25 +92,8 @@ a "
    all-keycodes)
   #:transparent)
 
-(doc (defproc (charterm-keyinfo? (x any/c))
-         boolean?)
-     "Predicate for whether or not "
-     (racket x)
-     " is a "
-     (racket charterm-keyinfo)
-     " object.")
 (provide charterm-keyinfo?)
 
-(doc (defproc*
-         (((charterm-keyinfo-keyset-id    (ki charterm-keyinfo?)) symbol?)
-          ((charterm-keyinfo-bytelang     (ki charterm-keyinfo?)) string?)
-          ((charterm-keyinfo-bytelist     (ki charterm-keyinfo?)) (listof byte?))
-          ((charterm-keyinfo-keylabel     (ki charterm-keyinfo?)) string?)
-          ((charterm-keyinfo-keycode      (ki charterm-keyinfo?)) charterm-keycode?)
-          ((charterm-keyinfo-all-keycodes (ki charterm-keyinfo?)) (listof charterm-keycode?)))
-       (para "Get information from a "
-             (racket charterm-keyinfo)
-             " object.")))
 (provide charterm-keyinfo-keyset-id
          charterm-keyinfo-bytelang
          charterm-keyinfo-bytelist
@@ -558,33 +174,10 @@ a "
                                     all-keycodes)))
          keylang))
 
-(doc (subsubsection "Keyset")
-
-     (para "A "
-           (deftech "keyset")
-           " is a specification of keys on a particular keyboard, including their "
-           (tech "keylabel")
-           ", encoding as bytes, and primary and alternate "
-           (tech #:key "keycode" "keycodes")
-           ".")
-
-     ;; TODO: Expose ability to construct keysets, once it's finalized.
-     (para "The means of constructing a keyset is currently internal to this package."))
-
 (define-struct charterm-keyset
   (id primary-keyinfos secondary-keyinfos)
   #:transparent)
-
-(doc (defproc (charterm-keyset? (x any/c))
-         boolean?
-       (para "Predicate for whether or not "
-             (racket x)
-             " is a keyset.")))
 (provide charterm-keyset?)
-
-(doc (defproc (charterm-keyset-id (ks charterm-keyset?))
-         symbol?)
-     (para "Get a symbol identifying the keyset."))
 (provide charterm-keyset-id)
 
 ;; (define (%charterm:keyinfos? x)
@@ -612,12 +205,6 @@ a "
                      primary-keyinfos
                      secondary-keyinfos)))
 
-(doc (defthing charterm-ascii-keyset charterm-keyset?
-       (para "From the old ["
-             (tech "ASCII")
-             "] standard.  When defining a "
-             (tech "keydec")
-             ", this is good to have as a final keyset, after the others.")))
 (define charterm-ascii-keyset
   (let ((keylangs
          `(("(0)"   "NUL"       nul             null)
@@ -664,21 +251,6 @@ a "
      keylangs
      keylangs)))
 
-(doc (defthing charterm-dec-vt100-keyset charterm-keyset?
-       (para "From the DEC VT100.  This currently defines the four function
-keys (labeled on the keyboard, "
-             (bold "PF1")
-             " through "
-             (bold "PF4")
-             ") as "
-             (racket 'f1)
-             " through "
-             (racket 'f4)
-             ", and the arrow keys.  ["
-             (tech "VT100-UG")
-             "] and ["
-             (tech "PowerTerm")
-             "] were used as references.")))
 (provide charterm-dec-vt100-keyset)
 (define  charterm-dec-vt100-keyset
   (make-charterm-keyset-from-keylangs
@@ -697,12 +269,6 @@ keys (labeled on the keyboard, "
      ;; the PC F keys to other sequences that are like the VT220.
      )))
 
-(doc (defthing charterm-dec-vt220-keyset charterm-keyset?
-       (para "From the DEC VT220.  This currently defines function keys "
-             (bold "F1")
-             " through "
-             (bold "F20")
-             ".")))
 (provide charterm-dec-vt220-keyset)
 (define  charterm-dec-vt220-keyset
   (make-charterm-keyset-from-keylangs
@@ -755,16 +321,6 @@ keys (labeled on the keyboard, "
 
      )))
 
-(doc (defthing charterm-screen-keyset charterm-keyset?
-       (para "From the "
-             (hyperlink "http://en.wikipedia.org/wiki/GNU_Screen"
-                        "GNU Screen")
-             " terminal multiplexer, according to ["
-             (tech "Gregory")
-             "].  Also used by "
-             (hyperlink "http://en.wikipedia.org/wiki/Tmux"
-                        (code "tmux"))
-             ".")))
 (provide charterm-screen-keyset)
 (define  charterm-screen-keyset
   (make-charterm-keyset-from-keylangs
@@ -789,12 +345,6 @@ keys (labeled on the keyboard, "
      ("(127)" "Backspace" backspace)
      )))
 
-(doc (defthing charterm-linux-keyset charterm-keyset?
-       (para "From the Linux console.  Currently defines function keys "
-             (bold "F1")
-             " through "
-             (bold "F5")
-             " only, since the rest will be inherited from other keysets.")))
 (provide charterm-linux-keyset)
 (define charterm-linux-keyset
   (make-charterm-keyset-from-keylangs
@@ -805,10 +355,6 @@ keys (labeled on the keyboard, "
      ("esc [ [ D" f4)
      ("esc [ [ E" f5))))
 
-(doc (defthing charterm-xterm-x11r6-keyset charterm-keyset?
-       (para "From the XTerm in X11R6, according to ["
-             (tech "Gregory")
-             "].")))
 (provide charterm-xterm-x11r6-keyset)
 (define  charterm-xterm-x11r6-keyset
   (make-charterm-keyset-from-keylangs
@@ -862,10 +408,6 @@ keys (labeled on the keyboard, "
      ("esc [ 2 3 ; 6 ~" f47)
      ("esc [ 2 4 ; 6 ~" f48))))
 
-(doc (defthing charterm-xterm-xfree86-keyset charterm-keyset?
-       (para "From the XFree86 XTerm, according to ["
-             (tech "Gregory")
-             "].")))
 (provide charterm-xterm-xfree86-keyset)
 (define  charterm-xterm-xfree86-keyset
   (make-charterm-keyset-from-keylangs
@@ -919,16 +461,6 @@ keys (labeled on the keyboard, "
      ("esc [ 2 3 ; 6 ~" f47)
      ("esc [ 2 4 ; 6 ~" f48))))
 
-(doc (defthing charterm-xterm-new-keyset charterm-keyset?
-       (para "From the current "
-             (code "xterm-new")
-             ", often called simply "
-             (code "xterm")
-             ", as developed by Thomas E. Dickey, and documented in ["
-             (tech "XTerm-ctlseqs")
-             "].  Several also came from decompiling a "
-             (code "terminfo")
-             " entry.  Thanks to Dickey for his emailed help.")))
 (provide charterm-xterm-new-keyset)
 (define  charterm-xterm-new-keyset
   (make-charterm-keyset-from-keylangs
@@ -993,18 +525,6 @@ keys (labeled on the keyboard, "
 
      )))
 
-(doc (defthing charterm-rxvt-keyset charterm-keyset?
-       (para "From the "
-             (hyperlink "http://en.wikipedia.org/wiki/Rxvt"
-                        (code "rxvt"))
-             " terminal emulator.  These come from ["
-             (tech "Gregory")
-             "], and
-currently define function keys "
-             (racket 'f1)
-             " through "
-             (racket 'f44)
-             ".")))
 (define charterm-rxvt-keyset
   (make-charterm-keyset-from-keylangs
    'rxvt
@@ -1066,22 +586,6 @@ currently define function keys "
      ("esc [ 2 ~"   "Insert" insert ins)
      )))
 
-(doc (defthing charterm-wyse-wy50-keyset charterm-keyset?
-       (para "From the Wyse WY-50, based on ["
-             (tech "WY-50-QRG")
-             "] and looking at photos of WY-50 keyboard, and tested in ["
-             (tech "wy60")
-             "] and ["
-             (tech "PowerTerm")
-             "].  The shifted function keys are provided as both "
-             (racket 'shift-f1)
-             " through "
-             (racket 'shift-16)
-             ", and "
-             (racket 'f17)
-             " through "
-             (racket 'f31)
-             ".")))
 (provide charterm-wyse-wy50-keyset)
 (define  charterm-wyse-wy50-keyset
   (make-charterm-keyset-from-keylangs
@@ -1137,12 +641,6 @@ currently define function keys "
      ("(127)"    "Shift-Backspace" backspace shift-backspace)
      )))
 
-(doc (defthing charterm-televideo-925-keyset charterm-keyset?
-       (para "From the TeleVideo 925, based on ["
-             (tech "TVI-925-IUG")
-             "], ["
-             (tech "PowerTerm")
-             "], and from looking at a TeleVideo 950 keyboard.")))
 (provide charterm-televideo-925-keyset charterm-keyset?)
 (define  charterm-televideo-925-keyset
   (make-charterm-keyset-from-keylangs
@@ -1189,23 +687,6 @@ currently define function keys "
      ;; ("esc Q" "CHAR INSERT" char-insert char-ins)
 
      )))
-
-(doc (subsubsection "Keydec")
-
-     (para "A "
-           (deftech "keydec")
-           " object is a key decoder for a specific variety of terminal, such
-as for a specific "
-           (tech "termvar")
-           ".  A keydec is used to turn received key encodings from a terminal into "
-           (tech "keycode")
-           " or "
-           (tech "keyinfo")
-           " values.  A keydec is constructed from a prioritized list of "
-           (tech "keyset")
-           " objects, with earlier-listed keysets taking priority of
-later-listed keysets when there is conflict between them as to how to decode a
-particular byte sequence."))
 
 (define (%charterm:make-keytree (alist '()))
   (make-immutable-hasheqv alist))
@@ -1278,11 +759,6 @@ particular byte sequence."))
                 (%charterm:keytree-add-any-keyinfos-can keytree
                                                         keyinfos))))))
 
-(doc (defproc (charterm-keydec-id (kd charterm-keydec?))
-         symbol?
-       (para "Gets the ID symbol of the "
-             (tech "keydec")
-             " being used.")))
 (provide charterm-keydec-id)
 
 (struct charterm-keydec
@@ -1298,15 +774,6 @@ particular byte sequence."))
                    (%charterm:make-keytree-from-keyinfoses
                     (map charterm-keyset-secondary-keyinfos keysets))))
 
-(doc (subsubsub*section "ANSI Keydecs"))
-
-(doc (defthing charterm-vt100-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "vt100")
-             ".")))
 (provide charterm-vt100-keydec)
 (define  charterm-vt100-keydec
   (charterm-make-keydec 'vt100
@@ -1319,13 +786,6 @@ particular byte sequence."))
                         charterm-xterm-x11r6-keyset
                         charterm-ascii-keyset))
 
-(doc (defthing charterm-vt220-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "vt220")
-             ".")))
 (provide charterm-vt220-keydec)
 (define  charterm-vt220-keydec
   (charterm-make-keydec 'vt220
@@ -1333,13 +793,6 @@ particular byte sequence."))
                         charterm-dec-vt100-keyset
                         charterm-ascii-keyset))
 
-(doc (defthing charterm-screen-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "screen")
-             ".")))
 (provide charterm-screen-keydec)
 (define  charterm-screen-keydec
   (charterm-make-keydec 'screen
@@ -1352,13 +805,6 @@ particular byte sequence."))
                         charterm-xterm-x11r6-keyset
                         charterm-ascii-keyset))
 
-(doc (defthing charterm-linux-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "linux")
-             ".")))
 (provide charterm-linux-keydec)
 (define  charterm-linux-keydec
   (charterm-make-keydec 'linux
@@ -1371,13 +817,6 @@ particular byte sequence."))
                         charterm-screen-keyset
                         charterm-ascii-keyset))
 
-(doc (defthing charterm-xterm-new-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "xterm-new")
-             ".")))
 (provide charterm-xterm-new-keydec)
 (define  charterm-xterm-new-keydec
   (charterm-make-keydec 'xterm-new
@@ -1390,15 +829,6 @@ particular byte sequence."))
                         charterm-linux-keyset
                         charterm-ascii-keyset))
 
-(doc (defthing charterm-xterm-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "xterm")
-             ".  Currently same as the keydec for "
-             (code "xterm")
-             ", except for a different ID.")))
 (provide charterm-xterm-keydec)
 (define  charterm-xterm-keydec
   (charterm-make-keydec 'xterm
@@ -1411,13 +841,6 @@ particular byte sequence."))
                         charterm-linux-keyset
                         charterm-ascii-keyset))
 
-(doc (defthing charterm-rxvt-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "rxvt")
-             ".")))
 (provide charterm-rxvt-keydec)
 (define  charterm-rxvt-keydec
   (charterm-make-keydec 'rxvt
@@ -1430,57 +853,23 @@ particular byte sequence."))
                         charterm-linux-keyset
                         charterm-ascii-keyset))
 
-(doc (subsubsub*section "Wyse Keydecs"))
-
-(doc (defthing charterm-wy50-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "wy50")
-             ".")))
 (provide charterm-wy50-keydec)
 (define  charterm-wy50-keydec
   (charterm-make-keydec 'wy50
                         charterm-wyse-wy50-keyset
                         charterm-ascii-keyset))
 
-(doc (subsubsub*section "TeleVideo Keydecs"))
-
-(doc (defthing charterm-tvi925-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "tvi925")
-             ".")))
 (provide charterm-tvi925-keydec)
 (define  charterm-tvi925-keydec
   (charterm-make-keydec 'tvi925
                         charterm-televideo-925-keyset
                         charterm-ascii-keyset))
 
-(doc (subsubsub*section "ASCII Keydecs"))
-
-(doc (defthing charterm-ascii-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for "
-             (tech "termvar")
-             " "
-             (racket "ascii")
-             ".")))
 (provide charterm-ascii-keydec)
 (define  charterm-ascii-keydec
   (charterm-make-keydec 'ascii
                         charterm-ascii-keyset))
 
-(doc (subsubsub*section "Default Keydecs"))
-
-(doc (defthing charterm-ansi-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for any presumed ANSI-ish terminal, combining many ANSI-ish "
-             (tech "keysets")
-             ".")))
 (define charterm-ansi-keydec
   (charterm-make-keydec 'ansi
                         charterm-dec-vt220-keyset
@@ -1492,11 +881,6 @@ particular byte sequence."))
                         charterm-xterm-x11r6-keyset
                         charterm-ascii-keyset))
 
-(doc (defthing charterm-insane-keydec charterm-keydec?
-       (para (tech "Keydec")
-             " for the uniquely desperate situation of wanting to possibly have
-extensive key decoding for a terminal that might not even be ansi, but be
-Wyse, TeleVideo, or some other ASCII.")))
 (provide charterm-insane-keydec)
 (define  charterm-insane-keydec
   (charterm-make-keydec 'insane
@@ -1511,70 +895,15 @@ Wyse, TeleVideo, or some other ASCII.")))
                         charterm-televideo-925-keyset
                         charterm-ascii-keyset))
 
-(doc (subsection "Termvar")
 
-     (para "A "
-           (deftech "termvar")
-           " is what the "
-           (code "charterm")
-           " package calls the value of the Unix-like "
-           (code "TERM")
-           " environment variable.  Each "
-           (tech "termvar")
-           " has a default "
-           (tech "protocol")
-           " and "
-           (tech "keydec")
-           ".  Note, however, that "
-           (code "TERM")
-           " is not always a precise indicator of the best protocol and keydec,
-but by default we work with what we have."))
-
-;; TODO: Document the termvars here?  Move this subsection?
-
-(doc (section (code "charterm") " Object")
-
-     (para "The "
-           (racket charterm)
-           " object captures the state of a session with a particular terminal.")
-
-     (para "A "
-           (racket charterm)
-           " object is also a synchronizable event, so it can be used with
-procedures such as "
-           (racket sync)
-           ".  As an event, it becomes ready when there is at least one byte
-available for reading from the terminal, and its synchronization result is
-itself."))
-
-(doc (defproc (charterm? (x any/c))
-         boolean?
-       (para "Predicate for whether or not "
-             (var x)
-             " is a "
-             (racket charterm)
-             ".")))
 (provide charterm?)
 
-(doc (defproc (charterm-termvar (ct charterm?))
-         (or/c #f string?))
-     (para "Gets the "
-           (tech "termvar")
-           "."))
+
 (provide charterm-termvar)
 
-(doc (defproc (charterm-protocol (ct charterm?))
-         symbol?)
-     (para "Gets the "
-           (tech "protocol")
-           "."))
+
 (provide charterm-protocol)
 
-(doc (defproc (charterm-keydec (ct charterm?))
-         symbol?)
-     (para "Gets the "
-           (tech "keydec")
-           "."))
 (provide (rename-out (charterm-keydec* charterm-keydec)))
 
 (define-struct charterm
@@ -1607,40 +936,10 @@ itself."))
     ((macosx) "-f")
     (else     "-F")))
   
-(doc (defparam current-charterm ct (or/c #f charterm?)
-       (para "This parameter provides the default "
-             (racket charterm)
-             " for most of the other procedures.  It is usually set automatically by "
-             (racket call-with-charterm)
-             ", "
-             (racket with-charterm)
-             ", "
-             (racket open-charterm)
-             ", and "
-             (racket close-charterm)
-             ".")))
+
 (provide current-charterm)
 (define current-charterm (make-parameter #f))
 
-(doc (defproc (open-charterm
-               (#:tty      tty      (or/c #f path-string?) #f)
-               (#:current? current? boolean?               #t))
-         charterm?
-       (para "Returns an open "
-             (racket charterm)
-             " object, by opening I/O ports on the terminal device at "
-             (racket tty)
-             " (or, if "
-             (racket #f)
-             ", file "
-             (filepath "/dev/tty")
-             "), and setting raw mode and disabling echo (via "
-             (filepath "/bin/stty")
-             ").  If "
-             (racket current?)
-             " is true, the "
-             (racket current-charterm)
-             " parameter is also set to this object.")))
 (provide open-charterm)
 (define (open-charterm #:tty      (tty      #f)
                        #:current? (current? #t))
@@ -1731,30 +1030,6 @@ itself."))
                  (current-charterm ct))
             ct))))))
 
-(doc (defproc (close-charterm (#:charterm ct charterm? (current-charterm)))
-         void?
-       (para "Closes "
-             (racket ct)
-             " by closing the I/O ports, and undoing "
-             (racket open-charterm)
-             "'s changes via "
-             (filepath "/bin/stty")
-             ".  If "
-             (racket current-charterm)
-             " is set to "
-             (racket ct)
-             ", then that parameter will be changed to "
-             (racket #f)
-             " for good measure.  You might wish to use "
-             (racket with-charterm)
-             " instead of worrying about calling "
-             (racket close-charterm)
-             " directly.")
-       (para "Note: If you exit your Racket process without properly closing the "
-             (racket charterm)
-             ", your terminal may be left in a crazy state.  You can fix it with
-the command:")
-       (commandline "stty sane")))
 (provide close-charterm)
 (define (close-charterm #:charterm (ct (current-charterm)))
   (with-handlers ((exn:fail? void)) (close-input-port  (charterm-in ct)))
@@ -1782,15 +1057,7 @@ the command:")
 ;;       (lambda ()
 ;;         (close-charterm #:charterm ct)))))
 
-(doc (defform (with-charterm expr? ...))
-     (para "Opens a "
-           (racket charterm)
-           " and evaluates the body expressions in sequence with "
-           (racket current-charterm)
-           " set appropriately.  When control jumps out of the body, in a
-manner of speaking, the "
-           (racket charterm)
-           " is closed."))
+
 (provide with-charterm)
 (define-syntax (with-charterm stx)
   (syntax-case stx ()
@@ -1805,45 +1072,7 @@ manner of speaking, the "
              (close-charterm #:charterm ct)
              (set! ct #f)))))))
 
-(doc (section "Terminal Information"))
 
-(doc (defproc (charterm-screen-size (#:charterm ct charterm? (current-charterm)))
-         (values (or/c #f exact-nonnegative-integer?)
-                 (or/c #f exact-nonnegative-integer?))
-       (para "Attempts to get the screen size, in character columns and rows.
-It may do this through a control sequence or through "
-             (code "/bin/stty")
-             ".  If unable to get a value, then default of (80,24) is used.")
-       (para "The current behavior in this version of "
-             (code "charterm")
-             " is to adaptively try different methods of getting screen size,
-and to remember what worked for the next time this procedure is called for "
-             (racket ct)
-             ".  For terminals that are identified as "
-             (code "screen")
-             " by the "
-             (code "TERM")
-             " environment variable (e.g., terminal emulators like GNU Screen
-and "
-             (code "tmux")
-             "), the current behavior is to not try the control sequence (which
-causes a 1-second delay waiting for a terminal response that never arrives),
-and to just use "
-             (code "stty")
-             ".  For all other terminals, the control sequence is tried first, before trying "
-             (code "stty")
-             ".  If neither the control sequence nor "
-             (code "stty")
-             " work, then neither method is tried again for "
-             (racket ct)
-             ", and instead the procedure always returns ("
-             (racket #f)
-             ", "
-             (racket #f)
-             ").  This behavior very well might change in future versions of "
-             (code "charterm")
-             ", and the author welcomes feedback on which methods work with
-which terminals.")))
 (provide charterm-screen-size)
 (define (charterm-screen-size #:charterm (ct (current-charterm)))
   ;; TODO: Make it store screen side in slots of charterm object too.  Then
@@ -1920,14 +1149,14 @@ which terminals.")))
                                            (subbytes bstr (caadr  m) (cdadr m)))
                                           (%charterm:bytes-ascii->nonnegative-integer
                                            (subbytes bstr (caaddr m) (cdaddr m))))))
-                            (else #f #f))))
+                            (else
+                             (error 'size "~v\n" bstr)
+                             (values #f #f)))))
           ;; Note: These checks for 0 are for if "stty" returns 0, such as
           ;; seems to happen in the emulator on the Wyse S50 when in SSH rather than Telnet.
-          (values (if (zero? width)  #f width)
-                  (if (zero? height) #f height)))
+          (values (and width (if (zero? width)  #f width))
+                  (and height (if (zero? height) #f height))))
         (values #f #f))))
-
-(doc (section "Display Control"))
 
 (define (%charterm:shift-buf ct)
   (let ((buf-start (charterm-buf-start ct))
@@ -2029,69 +1258,16 @@ which terminals.")))
                        "invalid byte ~S"
                        b)))))))
 
-(doc (subsection "Cursor"))
-
-(doc (defproc (charterm-cursor (x exact-positive-integer?)
-                               (y exact-positive-integer?)
-                               (#:charterm ct charterm? (current-charterm)))
-         void?
-       (para "Positions the cursor at column "
-             (racket x)
-             ", row "
-             (racket y)
-             ", with the upper-left character cell being (1, 1).")))
 (provide charterm-cursor)
 (define (charterm-cursor x y #:charterm (ct (current-charterm)))
   (%charterm:position ct x y))
 
-(doc (defproc (charterm-newline (#:charterm ct charterm? (current-charterm)))
-         void?
-       (para "Sends a newline to the terminal.  This is typically a CR-LF
-sequence.")))
 (provide charterm-newline)
 (define (charterm-newline #:charterm (ct (current-charterm)))
   (%charterm:write-bytes ct #"\r\n"))
 
-(doc (subsection "Displaying"))
 
 (define %charterm:err-byte 63)
-
-(doc (defproc (charterm-display
-               (#:charterm ct       charterm?                         (current-charterm))
-               (#:width    width    (or/c #f exact-positive-integer?) #f)
-               (#:pad      pad      (or/c 'width boolean?)            'width)
-               (#:truncate truncate (or/c 'width boolean?)            'width)
-               (           arg      any/c) ...)
-         void?
-       (para "Displays each "
-             (racket arg)
-             " on the terminal, as if formatted by "
-             (racket display)
-             ", with the exception that unprintable or non-ASCII characters
-might not be displayed.  (The exact behavior of what is permitted is expected
-to change in a later version of "
-             "CharTerm"
-             ", so avoid trying to send your own control sequences or using
-newlines, making assumptions about non-ASCII characters, etc.)")
-       (para "If "
-             (racket width)
-             " is a number, then "
-             (racket pad)
-             " and "
-             (racket truncate)
-             " specify whether or not to pad with spaces or truncate the output, respectively, to "
-             (racket width)
-             " characters.  When "
-             (racket pad)
-             " or "
-             (racket width)
-             " is "
-             (racket 'width)
-             ", that is a convenience meaning ``true if, and only if, "
-             (racket width)
-             " is not "
-             (racket #f)
-             ".''")))
 (provide charterm-display)
 (define (charterm-display #:charterm (ct       (current-charterm))
                           #:width    (width    #f)
@@ -2209,31 +1385,6 @@ newlines, making assumptions about non-ASCII characters, etc.)")
                (%charterm:write-byte ct (vector-ref %charterm:televideo-925-cursor-position-to-byte-vector y))
                (%charterm:write-byte ct (vector-ref %charterm:televideo-925-cursor-position-to-byte-vector x)))))))
 
-(doc (subsection "Video Attributes"))
-
-;; TODO: !!! document link to protocol section
-
-;; TODO: !!! define "charterm-has-video-attributes?"
-
-(doc (defproc*
-         (((charterm-normal    (#:charterm ct charterm? (current-charterm))) void?)
-          ((charterm-inverse   (#:charterm ct charterm? (current-charterm))) void?)
-          ((charterm-underline (#:charterm ct charterm? (current-charterm))) void?)
-          ((charterm-blink     (#:charterm ct charterm? (current-charterm))) void?)
-          ((charterm-bold      (#:charterm ct charterm? (current-charterm))) void?))
-       (para "Sets the "
-             (deftech "video attributes")
-             " for subsequent writes to the terminal.  In this version of "
-             (code "charterm")
-             ", each is mutually-exclusive, so, for example, setting "
-             (italic "bold")
-             " clears "
-             (italic "inverse")
-             ". Note that that video attributes are currently supported only for protocol "
-             (racket 'ansi)
-             ", due to limitations of the TeleVideo and Wyse models for
-video attributes.")))
-
 (provide charterm-normal)
 (define (charterm-normal #:charterm (ct (current-charterm)))
   (%charterm:protocol-case
@@ -2279,12 +1430,7 @@ video attributes.")))
    ((wyse-wy50)     (void)) ; (%charterm:write-bytes ct #"\eA0<"))
    ((televideo-925) (void))))
 
-(doc (subsection "Clearing"))
 
-(doc (defproc (charterm-clear-screen (#:charterm ct charterm? (current-charterm)))
-         void?
-       (para "Clears the screen, including first setting the video attributes to
-normal, and positioning the cursor at (1, 1).")))
 (provide charterm-clear-screen)
 (define (charterm-clear-screen #:charterm (ct (current-charterm)))
   ;; TODO: Have a #:style argument?  Or #:background argument?
@@ -2294,12 +1440,6 @@ normal, and positioning the cursor at (1, 1).")))
    ((ansi)      (%charterm:write-bytes ct #"\e[m\e[2J\e[;H"))
    ((wyse-wy50)     (%charterm:write-bytes ct #"\e+\e*\ea1R1C"))
    ((televideo-925) (%charterm:write-bytes ct #"\e+\e=  "))))
-
-(doc (defproc*
-         (((charterm-clear-line       (#:charterm ct charterm? (current-charterm))) void?)
-          ((charterm-clear-line-left  (#:charterm ct charterm? (current-charterm))) void?)
-          ((charterm-clear-line-right (#:charterm ct charterm? (current-charterm))) void?))
-       (para "Clears text from the line with the cursor, or part of the line with the cursor.")))
 
 (provide charterm-clear-line)
 (define (charterm-clear-line #:charterm (ct (current-charterm)))
@@ -2331,15 +1471,6 @@ normal, and positioning the cursor at (1, 1).")))
    ;; TODO: wyse-wy50 is clearing to nulls, not spaces.
    ((wyse-wy50)     (%charterm:write-bytes ct #"\et"))))
 
-(doc (subsection "Line Insert and Delete"))
-
-(doc (defproc (charterm-insert-line (count exact-positive-integer? 1)
-                                    (#:charterm ct charterm? (current-charterm)))
-         void?
-       (para "Inserts "
-             (racket count)
-             " blank lines at cursor.  Note that not all terminals support
-this.")))
 (provide charterm-insert-line)
 (define (charterm-insert-line (count 1) #:charterm (ct (current-charterm)))
   (if (integer? count)
@@ -2357,13 +1488,7 @@ this.")))
              "invalid count: ~S"
              count)))
 
-(doc (defproc (charterm-delete-line (count exact-positive-integer? 1)
-                                    (#:charterm ct charterm? (current-charterm)))
-         void?
-       (para "Deletes "
-             (racket count)
-             " blank lines at cursor.  Note that not all terminals support
-this.")))
+
 (provide charterm-delete-line)
 (define (charterm-delete-line (count 1) #:charterm (ct (current-charterm)))
   (if (integer? count)
@@ -2390,95 +1515,20 @@ this.")))
              "invalid count: ~S"
              count)))
 
-(doc (subsubsection "Misc. Output"))
-
-(doc (defproc (charterm-bell (#:charterm ct charterm? (current-charterm)))
-         void?
-       (para "Rings the terminal bell.  This bell ringing might manifest as a
-beep, a flash of the screen, or nothing.")))
 (provide charterm-bell)
 (define (charterm-bell #:charterm (ct (current-charterm)))
   (%charterm:write-bytes ct #"\007"))
 
-(doc (section "Keyboard Input")
-
-     ;; TODO: !!! document link to terminal diversity section
-
-     (para "Normally you will get keyboard input using the "
-           (racket charterm-read-key)
-           " procedure."))
-
-(doc (defproc (charterm-byte-ready? (#:charterm ct charterm? (current-charterm)))
-         boolean?
-       (para "Returns true/false for whether at least one byte is ready for
-reading (either in a buffer or on the port) from "
-             (racket ct)
-             ".  Note that, since some keys are encoded as multiple bytes, just
-because this procedure returns true doesn't mean that "
-             (racket charterm-read-key)
-             " won't block temporarily because it sees part of a potential
-multiple-byte key encoding.")))
 (provide charterm-byte-ready?)
 (define (charterm-byte-ready? #:charterm (ct (current-charterm)))
   (or (> (charterm-buf-end ct) (charterm-buf-start ct))
       (byte-ready? (charterm-in ct))))
 
-(doc (defproc (charterm-read-key
-               (#:charterm ct      charterm?           (current-charterm))
-               (#:timeout  timeout (or/c #f positive?) #f))
-         (or #f char? symbol?)
-       (para "Reads a key from "
-             (racket ct)
-             ", blocking indefinitely or until sometime after "
-             (racket timeout)
-             " seconds has been reached, if "
-             (racket timeout)
-             " is non-"
-             (racket #f)
-             ".  If timeout is reached, "
-             (racket #f)
-             " is returned.")
-       (para "Many keys are returned as characters, especially ones that
-correspond to printable characters.  For example, the unshifted "
-             (bold "Q")
-             " key is returned as character "
-             (racket #\q)
-             ".  Some other keys are returned as symbols, such as "
-             (racket 'return)
-             ", "
-             (racket 'escape)
-             ", "
-             (racket 'f1)
-             ", "
-             (racket 'shift-f12)
-             ", "
-             (racket 'right)
-             ", and many others.")
-       (para "Since some keys are sent as ambiguous sequences, "
-             (racket charterm-read-key)
-             " employs separate timeouts internally, such as to disambuate
-the "
-             (bold "Esc")
-             " key (byte sequence 27) from what on some terminals would be
-the "
-             (bold "F10")
-             " key (bytes sequence 27, 91, 50, 49, 126).")))
 (provide charterm-read-key)
 (define (charterm-read-key #:charterm (ct      (current-charterm))
                            #:timeout  (timeout #f))
   (%charterm:read-keyinfo-or-key 'charterm-read-key ct timeout #f))
 
-(doc (defproc (charterm-read-keyinfo
-               (#:charterm ct      charterm?           (current-charterm))
-               (#:timeout  timeout (or/c #f positive?) #f))
-         charterm-keyinfo?
-       (para "Like "
-             (racket charterm-read-keyinfo)
-             " except instead of returning a "
-             (tech "keycode")
-             ", it returns a "
-             (tech "keyinfo")
-             ".")))
 (provide charterm-read-keyinfo)
 (define (charterm-read-keyinfo #:charterm (ct      (current-charterm))
                                #:timeout  (timeout #f))
@@ -2572,227 +1622,3 @@ the "
 
 (define (%charterm:read-byte ct)
   (%charterm:read-byte/timeout ct #f))
-
-(doc (section "References")
-
-     (para "[" (deftech "ANSI X3.64") "] "
-           (url "http://en.wikipedia.org/wiki/ANSI_escape_code"))
-
-     (para "[" (deftech "ASCII") "] "
-           (url "http://en.wikipedia.org/wiki/Ascii"))
-     
-     (para "[" (deftech "ECMA-43") "] "
-           (hyperlink "http://www.ecma-international.org/publications/standards/Ecma-043.htm"
-                      (italic "Standard ECMA-43: 8-bit Coded Character Set Structure and Rules"))
-           ", 3rd Ed., 1991-12")
-
-     (para "[" (deftech "ECMA-48") "] "
-           (hyperlink "http://www.ecma-international.org/publications/standards/Ecma-048.htm"
-                      (italic "Standard ECMA-48: Control Functions for Coded Character Sets"))
-           ", 5th Ed., 1991-06")
-
-     (para "[" (deftech "Gregory") "] "
-           "Phil Gregory, ``"
-           (hyperlink "http://aperiodic.net/phil/archives/Geekery/term-function-keys.html"
-                      "Terminal Function Key Escape Codes")
-           ",'' 2005-12-13 Web post, as viewed on 2012-06")
-
-     (para "[" (deftech "PowerTerm") "] "
-           "Ericom PowerTerm InterConnect 8.2.0.1000 terminal emulator, as run on Wyse S50 WinTerm")
-
-     (para "[" (deftech "TVI-925-IUG") "] "
-           (hyperlink "http://vt100.net/televideo/tvi925_ig.pdf"
-                      (italic "TeleVideo Model 925 CRT Terminal Installation and User's Guide")))
-
-     (para "[" (deftech "TVI-950-OM") "] "
-           (hyperlink "http://www.mirrorservice.org/sites/www.bitsavers.org/pdf/televideo/Operators_Manual_Model_950_1981.pdf"
-                      (italic "TeleVideo Operator's Manual Model 950"))
-           ", 1981")
-     
-     (para "[" (deftech "VT100-TM") "] "
-           "Digital Equipment Corp., "
-           (hyperlink "http://vt100.net/docs/vt100-tm/"
-                      (italic "VT100 Series Technical Manual"))
-           ", 2nd Ed., 1980-09")
-     
-     (para "[" (deftech "VT100-UG") "] "
-           "Digital Equipment Corp., "
-           (hyperlink "http://vt100.net/docs/vt100-ug/"
-                      (italic "VT100 User Guide"))
-           ", 3rd Ed., 1981-06")
-                      
-     (para "[" (deftech "VT100-WP") "] "
-           "Wikipedia, "
-           (hyperlink "http://en.wikipedia.org/wiki/VT100"
-                      "VT100"))
-
-     (para "[" (deftech "WY-50-QRG") "] "
-           (hyperlink "http://vt100.net/wyse/wy-50-qrg/wy-50-qrg.pdf"
-                      (italic "Wyse WY-50 Display Terminal Quick-Reference Guide")))
-
-     (para "[" (deftech "WY-60-UG") "] "
-           (hyperlink "http://vt100.net/wyse/wy-60-ug/wy-60-ug.pdf"
-                      (italic "Wyse WY-60 User's Guide")))
-
-     (para "[" (deftech "wy60") "] "
-           (hyperlink "http://code.google.com/p/wy60/"
-                      (code "wy60")
-                      " terminal emulator"))
-
-     (para "[" (deftech "XTerm-ctlseqs") "] "
-           "Edward Moy, Stephen Gildea, Thomas Dickey, ``"
-           (hyperlink "http://invisible-island.net/xterm/ctlseqs/ctlseqs.html"
-                      "Xterm Control Sequences")
-           ",'' 2012")
-
-     (para "[" (deftech "XTerm-Dickey") "] "
-           (url "http://invisible-island.net/xterm/"))
-
-     (para "[" (deftech "XTerm-FAQ") "] "
-           "Thomas E. Dickey, ``"
-           (hyperlink "http://invisible-island.net/xterm/xterm.faq.html"
-                      "XTerm FAQ")
-           ",'' dated 2012")
-
-     (para "[" (deftech "XTerm-WP") "] "
-           "Wikipedia, "
-           (hyperlink "http://en.wikipedia.org/wiki/Xterm"
-                      "xterm"))
-           
-     )
-
-(doc (section "Known Issues")
-
-     (itemlist
-
-      (item "Need to support ANSI alternate CSI for 8-bit terminals, even
-before supporting 8-bit characters and multibyte.")
-
-      (item "Only supports ASCII characters.  Adding UTF-8 support, for terminal emulators
-that support it, would be nice.")
-      
-      (item "Expose the character-decoding mini-language as a configurable
-option.  Perhaps wait until we implement timeout-based disambiguation at
-arbitrary points in the the DFA rather than just at the top.  Also, might be
-better to resolve multi-byte characters first, in case that affects the
-mini-language.")
-
-      (item "More controls for terminal features can be added.")
-      
-      (item "Currently only implemented to work on Unix-like systems like
-GNU/Linux.")
-
-      (item "Implement text input controls, either as part of this library or
-another, using "
-            (racket charterm-demo)
-            " as a starting point.")))
-
-;; Note: Different ways to test demo:
-;;
-;;           racket -t demo.rkt -m
-;; screen    racket -t demo.rkt -m
-;; tmux -c  "racket -t demo.rkt -m"
-;; xterm -e  racket -t demo.rkt -m
-;; rxvt -e   racket -t demo.rkt -m
-;; wy60 -c   racket -t demo.rkt -m
-;;
-;; racket -t demo.rkt -m- -n
-
-;; TODO: Source for TeleVideo manuals:
-;; http://www.mirrorservice.org/sites/www.bitsavers.org/pdf/televideo/
-
-;; TODO: Add shifted function keys from T60 keyboard (not USB one).
-
-(doc history
-
-     (#:planet 3:1 #:date "2013-05-13"
-               (itemlist
-                (item "Now uses lowercase "
-                      (code "-f")
-                      " argument on MacOS X.  (Thanks to Jens Axel S\u00F8gaard for reporting.)")
-                (item "Documentation tweaks.")))
-
-     (#:planet 3:0 #:date "2012-07-13"
-               (itemlist
-                (item "Changed ``"
-                      (code "ansi-ish")
-                      "'' in identifiers to ``"
-                      (code "ansi")
-                      "'', hence the PLaneT major version number change.")
-                (item "Documentation tweaks.")
-                (item "Renamed package from ``"
-                      (code "charterm")
-                      "'' to ``CharTerm''.")))
-
-     (#:planet 2:5 #:date "2012-06-28"
-               (itemlist
-                (item "A "
-                      (racket charterm)
-                      " object is now a synchronizable event.")
-                (item "Documentation tweaks.")))
-     
-     (#:planet 2:4 #:date "2012-06-25"
-               (itemlist
-                (item "Documentation fix for return type of "
-                      (racket charterm-read-keyinfo)
-                      ".")))
-     
-     (#:planet 2:3 #:date "2012-06-25"
-               (itemlist
-                (item "Fixed problem determining screen size on some
-XTerms.  (Thanks to Eli Barzilay for reporting.)")))
-
-     (#:planet 2:2 #:date "2012-06-25"
-               (itemlist
-                (item "Added another variation of encoding for XTerm arrow,
-Home, and End keys.  (Thanks to Eli Barzilay.)")))
-     
-     (#:planet 2:1 #:date "2012-06-24"
-               (itemlist
-                (item "Corrected PLaneT version number in "
-                      (racket require)
-                      " in an example.")))
-     
-     (#:planet 2:0 #:date "2012-06-24"
-               (itemlist
-                (item "Greatly increased the sophistication of handling of terminal diversity.")
-                (item "Added the "
-                      (code "wyse-wy50")
-                      " and "
-                      (code "televideo-950")
-                      " [Correction: "
-                      (code "televideo-925")
-                      "] protocols, for supporting the native modes of Wyse and
-TeleVideo terminals, respectively, and compatibles.")
-                (item "More support for different key encodings and termvars.")
-                (item "Demo is now in a separate file, mainly for convenience
-in giving command lines that run it.  This breaks a command line example
-previously documented, so changed PLaneT major version, although the
-previously-published example will need to have "
-                      (code ":1")
-                      " added to it anyway.")
-                (item (racket charterm-screen-size)
-                      " now defaults to (80,24) when all else fails.")
-                (item "Documentation changes.")))
-
-     (#:planet 1:1 #:date "2012-06-17"
-               (itemlist
-                (item "For "
-                      (code "screen")
-                      " and "
-                      (code "tmux")
-                      ", now gets screen size via "
-                      (code "stty")
-                      ".  This resolves the sluggishness reported with "
-                      (code "screen")
-                      ".  [Correction: In version 1:1, this behavior is
-adaptive for all terminals, with the shortcut for "
-                      (tech "termvar")
-                      " "
-                      (code "screen")
-                      " that it doesn't bother trying the control sequence.]")
-                (item "Documentation tweaks.")))
-
-     (#:planet 1:0 #:date "2012-06-16"
-               (itemlist
-                (item "Initial version."))))

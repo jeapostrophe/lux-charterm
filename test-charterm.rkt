@@ -1,8 +1,7 @@
 #lang racket/base
 ;; For legal info, see file "charterm.rkt".
 
-;; (require (planet neil/charterm:1))
-(require "charterm.rkt")
+(require charterm)
 
 (with-charterm
  (charterm-clear-screen)
