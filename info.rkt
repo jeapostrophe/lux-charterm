@@ -1,8 +1,6 @@
-#lang setup/infotab
+#lang info
 
-(define collection "charterm")
-(define deps '("base"
-               ))
-(define build-deps '("scribble-lib"
-                     ))
-(define scribblings        '(("charterm.scrbl" () (library))))
+(define collection 'multi)
+(define deps '("lux"
+               "base"))
+(define build-deps '("scribble-lib"))

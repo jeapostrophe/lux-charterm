@@ -1392,6 +1392,20 @@
                (%charterm:write-byte ct (vector-ref %charterm:televideo-925-cursor-position-to-byte-vector y))
                (%charterm:write-byte ct (vector-ref %charterm:televideo-925-cursor-position-to-byte-vector x)))))))
 
+(provide charterm-title)
+(define (charterm-title #:charterm (ct (current-charterm)) title)
+  (%charterm:protocol-case
+   'charterm-normal
+   (charterm-protocol ct)
+   ((ansi)      
+    (%charterm:write-bytes
+     ct
+     (bytes-append #"\033]0;"
+                   (bytes-append (string->bytes/utf-8 title)
+                                 #"\007"))))
+   ((wyse-wy50)     (void))
+   ((televideo-925) (void))))
+
 (provide charterm-normal)
 (define (charterm-normal #:charterm (ct (current-charterm)))
   (%charterm:protocol-case
