@@ -15,8 +15,7 @@
          (define (chaos-output! c o)
            (when o
              (parameterize ([current-charterm (*charterm-ct c)])
-               (define-values (w h) (charterm-screen-size))
-               (o w h))))
+               (o))))
          (define (chaos-label! c l)
            (charterm-title #:charterm (*charterm-ct c) l))
          (define (chaos-swap! c t)

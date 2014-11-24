@@ -79,7 +79,8 @@
               (demo nz)]))
          (define (word-output w)
            (match-define (demo z) w)
-           (lambda (width height)
+           (lambda ()
+             (define-values (width height) (charterm-screen-size))
              (charterm-clear-screen)
              (define cur-x
                (match z
