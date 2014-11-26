@@ -4,7 +4,7 @@
          charterm
          lux/chaos)
 
-(struct *charterm (depth-box ct)
+(struct *charterm (ct)
         #:methods gen:chaos
         [(define (chaos-yield c e)
            (sync e))
@@ -18,20 +18,13 @@
                (o))))
          (define (chaos-label! c l)
            (charterm-title #:charterm (*charterm-ct c) l))
-         (define (chaos-swap! c t)
-           (define db (*charterm-depth-box c))
-           (define og (unbox db))
-           (set-box! db (add1 og))
-           (begin0 (t)
-             (if (zero? og)
-                 (close-charterm #:charterm (*charterm-ct c))
-                 (set-box! db og))))])
+         (define (chaos-stop! c)
+           (close-charterm #:charterm (*charterm-ct c)))])
 
 (define (make-charterm)
   (define ct (open-charterm #:current? #f))
-  (define depth-box (box 0))
 
-  (*charterm depth-box ct))
+  (*charterm ct))
 
 (provide
  (contract-out
