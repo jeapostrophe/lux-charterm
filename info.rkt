@@ -3,4 +3,5 @@
 (define collection 'multi)
 (define deps '("lux"
                "base"))
-(define build-deps '("scribble-lib"))
+(define build-deps '("racket-doc"
+                     "scribble-lib"))
