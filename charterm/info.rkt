@@ -1,3 +1,3 @@
 #lang info
 
-(define scribblings        '(("charterm.scrbl" () (library))))
+(define scribblings        '(("charterm.scrbl" () ("Terminal"))))

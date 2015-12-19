@@ -1,3 +1,3 @@
 #lang info
 
-(define scribblings        '(("lux-charterm.scrbl" () (library))))
+(define scribblings        '(("lux-charterm.scrbl" () ("Terminal"))))
