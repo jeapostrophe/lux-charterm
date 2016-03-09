@@ -2,7 +2,7 @@
 (require racket/match
          racket/runtime-path
          racket/file
-         charterm
+         charterm-fork
          lux
          lux/chaos/charterm)
 

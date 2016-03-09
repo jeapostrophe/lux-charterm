@@ -1,7 +1,7 @@
 #lang racket/base
 (require racket/match
          racket/contract/base
-         charterm
+         charterm-fork
          lux/chaos)
 
 (struct *charterm (ct)
