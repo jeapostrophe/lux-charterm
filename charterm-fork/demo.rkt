@@ -303,3 +303,6 @@
                   (("--no-escape" "-n") "Esc key does not quit program."   (set! escape? #f)))
     (charterm-demo #:tty     tty
                    #:escape? escape?)))
+
+(module+ test
+  (void))

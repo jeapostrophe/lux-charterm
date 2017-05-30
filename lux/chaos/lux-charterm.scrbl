@@ -1,5 +1,5 @@
 #lang scribble/manual
-@(require (for-label charterm
+@(require (for-label charterm-fork
                      lux/chaos
                      lux/chaos/charterm))
 
