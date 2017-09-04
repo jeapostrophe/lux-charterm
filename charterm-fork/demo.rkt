@@ -3,7 +3,7 @@
 
 (require racket/cmdline
          racket/date
-         charterm)
+         "main.rkt")
 
 (define (%charterm:string-pad-or-truncate str width)
   (let ((len (string-length str)))
