@@ -1,7 +1,7 @@
 #lang racket/base
 ;; For legal info, see file "charterm.rkt".
 
-(require charterm)
+(require charterm-fork)
 
 (with-charterm
  (charterm-clear-screen)
